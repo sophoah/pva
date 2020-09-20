@@ -1,6 +1,6 @@
 from flask import Flask, request, Response, jsonify
 from database.db import initialize_db
-from database.models import Movie, PVAParticipant, Result
+from database.models import PVAParticipant, Result
 import json
 
 app = Flask(__name__)
@@ -22,9 +22,13 @@ def get_pvausers():
 def add_pvauser():
     body = request.get_json()
     print(body)
-    pvauser =  PVAParticipant(**body).save()
-    id = pvauser.id
-    return {"id": str(id)}, 200
+    try:
+        pvauser =  PVAParticipant(**body).save()
+        id = pvauser.id
+        return {"id": str(id)}, 200
+    except:
+        print("validator already saved or issue saving the new one")
+        return {"result": "nok", "message":"validator already saved or issue saving the new one"}, 400
 
 @app.route('/pvausers/<id>', methods=['PUT'])
 def update_pvauser(id):
@@ -35,9 +39,14 @@ def update_pvauser(id):
 @app.route('/pvausers/add/<pvaadd>', methods=['PUT'])
 def update_pvauser_add(pvaadd):
     body = request.get_json()
-    #body.pvauser = PVAParticipant.objects.get(validatoraddress=pvaadd)
+
+    try:
+        pvaobj = PVAParticipant.objects.get(validatoraddress=pvaadd)
+    except:
+        print("validator non existent")
+        return {"result": "nok", "message":"validator non existent"}, 400
     print(body)
-    PVAParticipant.objects.get(validatoraddress=pvaadd).update(**body)
+    #PVAParticipant.objects.get(id=pvaobj).update(**body)
     return {"result": "ok"}, 200
 
 
@@ -54,7 +63,7 @@ def get_pvauser(id):
 
 #results
 @app.route('/pvausers/results')
-def get_results(pvaid):
+def get_results():
     result = Result.objects().to_json()
     return Response(result, mimetype="application/json", status=200)
 
@@ -130,11 +139,10 @@ def create_pvauser_result_via_add(pvaadd, challengename):
         "gamename": challengename,
         "gameresult": 1
     }
-    #Result.objects(pvauser=pvaobj.id, gamename=challengename).update(**content)
     try:
         Result(**content).save()
         return {"result": "ok", "message":"game created"}, 200
     except:
         return {"result": "nok", "message":"result not created, most likely already created"}, 400
 
-app.run(host= '0.0.0.0', debug= True)
+app.run(host= '127.0.0.1', debug= True)

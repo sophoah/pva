@@ -56,6 +56,8 @@ def getNodeNetwork(nodeurl):
     data["endpoint"] = endpoint
     return data
 
+# to check the node latest chain information and compare with network
+# need validator node RPC IP
 def IsInSynced(nodeurl = "http://127.0.0.1:9500"):
     nodeinfo = getNodemetadata_rpcurl(nodeurl)
     shardid = nodeinfo['shard-id']
@@ -92,12 +94,16 @@ def IsInSynced(nodeurl = "http://127.0.0.1:9500"):
     else:
         return False
 
+# to check the node RPC version
+# need validator node RPC IP
 def CheckVersion(nodeurl = "http://127.0.0.1:9500", version = "v6268-v2.3.5"):
     nodeversion = getNodemetadata_rpcurl(nodeurl)['version']
     if re.search(version, nodeversion) != None:
         return True
     return False
 
+# to check the node RPC installed BLS Keys vs on chain
+# need validator node RPC IP
 def CheckBLS(validator, nodeurl = "http://127.0.0.1:9500"):
     nodeinfo = getNodemetadata_rpcurl(nodeurl)
     shardid = nodeinfo['shard-id']
@@ -131,7 +137,6 @@ def CheckBLS(validator, nodeurl = "http://127.0.0.1:9500"):
         if key_found == False:
             return False
     return True
-
 
 def argsparse():
     parser = argparse.ArgumentParser(description="POPS PVA Checker")
@@ -216,7 +221,8 @@ PVA_Participants_List=[
 {"address": "one13up8rppejatmznzr7nder8u6llatvudrumxt02", "challenges":["uptime"]},
 {"address": "one1tjn2mskvsczn666wktjtkshann9a6cp8d2tkty", "challenges": ["uptime"]},
 {"address": "one1yfscyp6cf5wpapy6mfwtvs840r3hqnac4ymvxp", "challenges": ["uptime"]},
-{"address": "one1rne77yeqat997hvg59a9xqllhupj73vk34jq6e", "challenges": ["uptime"]}
+{"address": "one1rne77yeqat997hvg59a9xqllhupj73vk34jq6e", "challenges": ["uptime"]},
+{"address": "one170xqsfzm4xdmuyax54t5pvtp5l5yt66u50ctrp", "challenges": ["uptime"]}
 ]
 
 PVA_List_address_only=[x['address'] for x in PVA_Participants_List]
@@ -292,13 +298,24 @@ def CreateUptimeChallenge():
         }
         post_url('http://127.0.0.1:5000/results', data)
 
+#return true if all ok, else false
+# status is active and avg uptime is not 0
+def validator_uptime_test(onchainuserinfo):
+    if (onchainuserinfo['active-status'] == 'active' and 
+        float(onchainuserinfo['current-epoch-performance']['current-epoch-signing-percent']['current-epoch-signing-percentage']) > 0):
+        return True
+    return False
+
 def testUptime(OnChainPvaValidatorInfo):
     for pvauser in PVA_Participants_List:
         for onchainpvauser in OnChainPvaValidatorInfo:
+            #if validator_uptime_test(pvauser['address'], onchainpvauser):
             if pvauser['address'] == onchainpvauser['validator']['address']:
-                #put_url(f"http://127.0.0.1:5000/pvausers/add/{pvauser['address']}'", {'validatorcreated': 'True'})
-                if onchainpvauser['active-status'] == 'active':
+                #put_url(f"http://127.0.0.1:5000/pvausers/add/{pvauser['address']}", {"validatorcreated": "True"})
+                if validator_uptime_test(onchainpvauser):
+                #if onchainpvauser['active-status'] == 'active':
                     uptimepoints = get_url(f"http://127.0.0.1:5000/pvausers/add/{pvauser['address']}/results/uptime")
+                    #print(f"yes for {pvauser['address']}")
                     if len(uptimepoints) == 0:
                         #create the uptime results related fields
                         post_url(f"http://127.0.0.1:5000/pvausers/add/{pvauser['address']}/results/uptime", {"gameresult": 1})
@@ -315,10 +332,10 @@ def testUptime(OnChainPvaValidatorInfo):
 
 
 if __name__ == "__main__":
-    pvavalidators = GetPVADetails()
-    testUptime(pvavalidators)
-    
     #CreateAllPVAUser()
+    pvavalidators = GetPVADetails()
+    testUptime(pvavalidators)   
+    
     #ShowPVAdb()
 
     # args = argsparse()
